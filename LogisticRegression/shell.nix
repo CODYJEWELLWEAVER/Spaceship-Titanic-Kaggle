@@ -10,6 +10,7 @@ mkShell {
       numpy
       matplotlib
       tqdm
+      pandas
     ]))
   ];
 }

@@ -9,19 +9,20 @@ from tqdm import tqdm
 import warnings
 
 class LogisticRegressionModel():
+    """
+    Binary Logistic Regression Model
+    """
     def __init__(
             self, 
             dim, 
             init_weights=None, 
-            class_labels=[False, True], 
-            learning_rate=1e-3
+            learning_rate=1e-4
         ):
         self.dim = dim
         self.w = np.zeros(dim) if init_weights is None else init_weights
-        self.class_labels = class_labels
+        self.pos_label = 1
+        self.neg_label = 0
         self.lr = learning_rate
-        self.pos_index = 1
-        self.neg_index = 0
 
 
     def predict(self, example):
@@ -30,8 +31,8 @@ class LogisticRegressionModel():
             raise ValueError("Incorrect example shape %d" % example.shape)
         return np.where(
             np.dot(self.w, example) >= 0,
-            self.class_labels[self.pos_index],
-            self.class_labels[self.neg_index]
+            self.pos_label,
+            self.neg_label
         )
         
     
@@ -40,7 +41,7 @@ class LogisticRegressionModel():
         return np.array([pred for pred in map(self.predict, examples)])
     
     
-    def fit_model(self, examples, labels, max_iter=1000):
+    def fit_model(self, examples, labels, num_epochs=10):
         """
         Trains logistic regression model with given data using 
         stochastic gradient descent and squared error.
@@ -48,17 +49,29 @@ class LogisticRegressionModel():
             data: list of tuples of the form (x, y)
             max_iter: maximum number of samples to use during training
         """
-        data = zip(examples, labels)
+        indices = [idx for idx in range(len(examples))]
         rng = np.random.default_rng()
 
-        training_loop = tqdm(range(max_iter), "Fitting LR Model")
-        for _ in training_loop:
-            # sample data
-            x, y = rng.choice(data)
-            # compute gradient 
-            grad = self.logistic_grad(x, y)
-            # perform gradient descent w.r.t. (x, y)
-            w -= self.lr * grad
+        for epoch in range(num_epochs):
+            rng.shuffle(indices)
+
+            epoch_loss = 0
+            for i in tqdm(range(len(indices)), 'Epoch: %d' % epoch):
+                idx = indices[i]
+                x = examples[idx]
+                y = labels[idx]
+
+                # compute gradient 
+                grad = self.logistic_grad(x, y)
+
+                # perform gradient descent w.r.t. (x, y)
+                self.w -= self.lr * grad
+
+                ex_loss = np.log(1 + np.exp(-y * np.dot(self.w, x)))
+                epoch_loss += ex_loss
+
+            avg_loss = epoch_loss / len(indices)
+            print('Average Log Loss for epoch %d: %.2f' % (epoch, avg_loss))
 
 
     def evaluate(self, examples, labels):
@@ -71,11 +84,8 @@ class LogisticRegressionModel():
         predictions = self.predict_all(examples)
         N = predictions.shape[0]
         accuracy = np.mean(predictions == labels)
-        FP = ((predictions == True) and (labels != self.class_labels[])).sum()
-        TP = ((predictions == True) and (labels == 1)).sum()
-        precision = TP / (FP + TP)
 
-        return (accuracy, precision)
+        return accuracy
 
 
     def _positive_sigmoid(self, x):
@@ -93,7 +103,7 @@ class LogisticRegressionModel():
         # warning must be suppressed since the warning comes from the
         # branch which is not taken during execution.
         with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
+            warnings.simplefilter('ignore', RuntimeWarning)
             return np.where(
                 x >= 0,
                 self._positive_sigmoid(x),
@@ -102,6 +112,6 @@ class LogisticRegressionModel():
         
         
     def logistic_grad(self, x, y_gold):
-        # computes the gradient of squared loss w.r.t. weights for example x
-        z = self.sigmoid(np.dot(self.w, x))
-        return (z - y_gold) * (z * (1 - z)) * x
+        # computes the gradient of logistic loss w.r.t. weight vector
+        z = self.sigmoid(-y_gold * np.dot(self.w, x))
+        return -z * y_gold * x
