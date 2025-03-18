@@ -78,14 +78,20 @@ class LogisticRegressionModel():
         """ 
         Calculates accuracy and precision scores. 
         Returns:
-            scores: (accuracy_score, precision_score)
+            scores: (accuracy, precision, recall)
         """
 
         predictions = self.predict_all(examples)
-        N = predictions.shape[0]
         accuracy = np.mean(predictions == labels)
 
-        return accuracy
+        TP = ((predictions == 1) & (labels == 1)).sum()
+        FP = ((predictions == 1) & (labels == 0)).sum()
+        precision = TP / (TP + FP)
+
+        FN = ((predictions == 0) & (labels == 1)).sum()
+        recall = TP / (TP + FN)
+
+        return accuracy, precision, recall
 
 
     def _positive_sigmoid(self, x):
@@ -112,6 +118,6 @@ class LogisticRegressionModel():
         
         
     def logistic_grad(self, x, y_gold):
-        # computes the gradient of logistic loss w.r.t. weight vector
+        """ computes the gradient of logistic loss w.r.t. current weight vector """
         z = self.sigmoid(-y_gold * np.dot(self.w, x))
         return -z * y_gold * x
