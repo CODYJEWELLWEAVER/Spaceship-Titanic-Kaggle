@@ -11,6 +11,7 @@ mkShell {
       matplotlib
       tqdm
       pandas
+      scikit-learn
     ]))
   ];
 }

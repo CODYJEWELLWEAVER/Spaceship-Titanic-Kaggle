@@ -16,13 +16,22 @@ class LogisticRegressionModel():
             self, 
             dim, 
             init_weights=None, 
-            learning_rate=1e-4
+            learning_rate=1e-5,
+            silent=False
         ):
         self.dim = dim
         self.w = np.zeros(dim) if init_weights is None else init_weights
         self.pos_label = 1
         self.neg_label = 0
         self.lr = learning_rate
+        self.silent = silent
+
+
+    def bce_loss(self, y_pred, y_true):
+        epsilon = 1e-9
+        y1 = y_true * np.log(y_pred + epsilon)
+        y2 = (1 - y_true) * np.log(1 - y_pred + epsilon)
+        return -np.mean(y1 + y2)
 
 
     def predict(self, example):
@@ -41,7 +50,7 @@ class LogisticRegressionModel():
         return np.array([pred for pred in map(self.predict, examples)])
     
     
-    def fit_model(self, examples, labels, num_epochs=10):
+    def fit(self, examples, labels, num_epochs=10):
         """
         Trains logistic regression model with given data using 
         stochastic gradient descent and squared error.
@@ -55,8 +64,13 @@ class LogisticRegressionModel():
         for epoch in range(num_epochs):
             rng.shuffle(indices)
 
+            if not self.silent:
+                idx_range = tqdm(range(len(indices)), 'Epoch: %d' % epoch)
+            else:
+                idx_range = range(len(indices))
+
             epoch_loss = 0
-            for i in tqdm(range(len(indices)), 'Epoch: %d' % epoch):
+            for i in idx_range:
                 idx = indices[i]
                 x = examples[idx]
                 y = labels[idx]
@@ -71,7 +85,8 @@ class LogisticRegressionModel():
                 epoch_loss += ex_loss
 
             avg_loss = epoch_loss / len(indices)
-            print('Average Log Loss for epoch %d: %.2f' % (epoch, avg_loss))
+            if not self.silent:
+                print('Average Log Loss for epoch %d: %.2f' % (epoch, avg_loss))
 
 
     def evaluate(self, examples, labels):
@@ -91,7 +106,7 @@ class LogisticRegressionModel():
         FN = ((predictions == 0) & (labels == 1)).sum()
         recall = TP / (TP + FN)
 
-        return accuracy, precision, recall
+        return (accuracy, precision, recall)
 
 
     def _positive_sigmoid(self, x):
@@ -119,5 +134,9 @@ class LogisticRegressionModel():
         
     def logistic_grad(self, x, y_gold):
         """ computes the gradient of logistic loss w.r.t. current weight vector """
-        z = self.sigmoid(-y_gold * np.dot(self.w, x))
-        return -z * y_gold * x
+        if y_gold == 0:
+            yi = -1
+        else:
+            yi = 1
+        z = self.sigmoid(-yi * np.dot(self.w, x))
+        return -z * yi * x
