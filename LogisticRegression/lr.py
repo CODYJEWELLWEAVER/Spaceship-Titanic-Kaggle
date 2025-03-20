@@ -13,14 +13,12 @@ class LogisticRegressionModel():
     Binary Logistic Regression Model
     """
     def __init__(
-            self, 
-            dim, 
-            init_weights=None, 
-            learning_rate=1e-5,
-            silent=False
+            self,
+            learning_rate=1e-3,
+            silent=False,
         ):
-        self.dim = dim
-        self.w = np.zeros(dim) if init_weights is None else init_weights
+        self.weights = None
+        self.bias = None
         self.pos_label = 1
         self.neg_label = 0
         self.lr = learning_rate
@@ -34,79 +32,54 @@ class LogisticRegressionModel():
         return -np.mean(y1 + y2)
 
 
-    def predict(self, example):
-        """ Predict class label of example. """
-        if example.shape != self.w.shape:
-            raise ValueError("Incorrect example shape %d" % example.shape)
-        return np.where(
-            np.dot(self.w, example) >= 0,
-            self.pos_label,
-            self.neg_label
-        )
-        
-    
-    def predict_all(self, examples):
-        """ Predicts class labels of multiple examples. """
-        return np.array([pred for pred in map(self.predict, examples)])
+    def predict(self, X):
+        """ Predict class labels. """
+        y_hat = np.dot(X, self.weights) + self.bias
+        y_hat = self.sigmoid(y_hat)
+        return np.where(y_hat >= 0.5, 1, 0)
     
     
-    def fit(self, examples, labels, num_epochs=10):
-        """
-        Trains logistic regression model with given data using 
-        stochastic gradient descent and squared error.
-        Params:
-            data: list of tuples of the form (x, y)
-            max_iter: maximum number of samples to use during training
-        """
-        indices = [idx for idx in range(len(examples))]
-        rng = np.random.default_rng()
+    def forward(self, X):
+        # compute the forward pass
+        z = np.dot(self.weights, X.T) + self.bias
+        A = self.sigmoid(z)
+        return A
 
-        for epoch in range(num_epochs):
-            rng.shuffle(indices)
+    
+    def fit(self, X, y, max_iter=100, fit_bias=True):
+        """
+        Trains logistic regression model with given data.
+        """
+        n_samples, n_features = X.shape
 
-            if not self.silent:
-                idx_range = tqdm(range(len(indices)), 'Epoch: %d' % epoch)
+        self.weights = np.zeros(n_features)
+        self.bias = 0
+
+        for _ in range(max_iter):
+            A = self.forward(X)
+            dz = A - y # derivative of sigmoid and bce X.T * (A - y)
+            # gradients 
+            dw = (1 / n_samples) * np.dot(X.T, dz)
+            if fit_bias:
+                db = (1 / n_samples) * np.sum(dz)
             else:
-                idx_range = range(len(indices))
-
-            epoch_loss = 0
-            for i in idx_range:
-                idx = indices[i]
-                x = examples[idx]
-                y = labels[idx]
-
-                # compute gradient 
-                grad = self.logistic_grad(x, y)
-
-                # perform gradient descent w.r.t. (x, y)
-                self.w -= self.lr * grad
-
-                ex_loss = np.log(1 + np.exp(-y * np.dot(self.w, x)))
-                epoch_loss += ex_loss
-
-            avg_loss = epoch_loss / len(indices)
-            if not self.silent:
-                print('Average Log Loss for epoch %d: %.2f' % (epoch, avg_loss))
+                db = 0
+            # update parameters
+            self.weights -= self.lr * dw
+            self.bias -= self.lr * db
 
 
-    def evaluate(self, examples, labels):
+    def evaluate(self, X, y):
         """ 
         Calculates accuracy and precision scores. 
         Returns:
             scores: (accuracy, precision, recall)
         """
 
-        predictions = self.predict_all(examples)
-        accuracy = np.mean(predictions == labels)
+        predictions = self.predict(X)
+        accuracy = np.mean(predictions == y)
 
-        TP = ((predictions == 1) & (labels == 1)).sum()
-        FP = ((predictions == 1) & (labels == 0)).sum()
-        precision = TP / (TP + FP)
-
-        FN = ((predictions == 0) & (labels == 1)).sum()
-        recall = TP / (TP + FN)
-
-        return (accuracy, precision, recall)
+        return accuracy
 
 
     def _positive_sigmoid(self, x):
