@@ -15,6 +15,7 @@ class LogisticRegressionModel():
     def __init__(
             self,
             learning_rate=1e-3,
+            l2_penalty=1e-3,
             silent=False,
         ):
         self.weights = None
@@ -22,6 +23,7 @@ class LogisticRegressionModel():
         self.pos_label = 1
         self.neg_label = 0
         self.lr = learning_rate
+        self.l2_penalty = l2_penalty
         self.silent = silent
 
 
@@ -41,7 +43,7 @@ class LogisticRegressionModel():
     
     def forward(self, X):
         # compute the forward pass
-        z = np.dot(self.weights, X.T) + self.bias
+        z = np.dot(X, self.weights) + self.bias
         A = self.sigmoid(z)
         return A
 
@@ -59,9 +61,10 @@ class LogisticRegressionModel():
             A = self.forward(X)
             dz = A - y # derivative of sigmoid and bce X.T * (A - y)
             # gradients 
-            dw = (1 / n_samples) * np.dot(X.T, dz)
+            # gradient of BCE + lambda * l2 norm squared of weight vector
+            dw = (1 / n_samples) * (np.dot(X.T, dz) + self.l2_penalty * self.weights)
             if fit_bias:
-                db = (1 / n_samples) * np.sum(dz)
+                db = (1 / n_samples) * (np.sum(dz) + self.l2_penalty * self.bias)
             else:
                 db = 0
             # update parameters
