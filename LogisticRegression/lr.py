@@ -74,9 +74,7 @@ class LogisticRegressionModel():
 
     def evaluate(self, X, y):
         """ 
-        Calculates accuracy and precision scores. 
-        Returns:
-            scores: (accuracy, precision, recall)
+        Calculates accuracy.
         """
 
         predictions = self.predict(X)
