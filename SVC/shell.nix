@@ -12,6 +12,7 @@ mkShell {
       tqdm
       pandas
       scikit-learn
+      scipy
     ]))
   ];
 }
